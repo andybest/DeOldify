@@ -53,8 +53,8 @@ class CustomPixelShuffle_ICNR(nn.Module):
         return self.blur(self.pad(x)) if self.blur else x
 
 @torch.jit.script
-def unet_helper(ssh, up_out, s):
-    if ssh != up_out.shape[-2:]:
+def unet_helper(ssh, up_out_shape, up_out, s):
+    if ssh != up_out_shape:
        return F.interpolate(up_out, s.shape[-2:], mode='nearest')
     else:
         return up_out
@@ -92,7 +92,7 @@ class UnetBlockDeep(nn.Module):
         s = self.hook.stored
         up_out = self.shuf(up_in)
         ssh = s.shape[-2:]
-        up_out = unet_helper(ssh, up_out, s)
+        up_out = unet_helper(ssh, up_out.shape[-2], up_out, s)
         # if ssh != up_out.shape[-2:]:
         #     up_out = F.interpolate(up_out, s.shape[-2:], mode='nearest')
         cat_x = self.relu(torch.cat([up_out, self.bn(s)], dim=1))
