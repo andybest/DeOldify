@@ -1,3 +1,4 @@
+import torch.jit
 from fastai.layers import *
 from .layers import *
 from fastai.torch_core import *
@@ -51,6 +52,12 @@ class CustomPixelShuffle_ICNR(nn.Module):
         x = self.shuf(self.relu(self.conv(x)))
         return self.blur(self.pad(x)) if self.blur else x
 
+@torch.jit.script
+def unet_helper(ssh, up_out, s):
+    if ssh != up_out.shape[-2:]:
+       return F.interpolate(up_out, s.shape[-2:], mode='nearest')
+    else:
+        return up_out
 
 class UnetBlockDeep(nn.Module):
     "A quasi-UNet block, using `PixelShuffle_ICNR upsampling`."
@@ -85,8 +92,9 @@ class UnetBlockDeep(nn.Module):
         s = self.hook.stored
         up_out = self.shuf(up_in)
         ssh = s.shape[-2:]
-        if ssh != up_out.shape[-2:]:
-            up_out = F.interpolate(up_out, s.shape[-2:], mode='nearest')
+        up_out = unet_helper(ssh, up_out, s)
+        # if ssh != up_out.shape[-2:]:
+        #     up_out = F.interpolate(up_out, s.shape[-2:], mode='nearest')
         cat_x = self.relu(torch.cat([up_out, self.bn(s)], dim=1))
         return self.conv2(self.conv1(cat_x))
 
